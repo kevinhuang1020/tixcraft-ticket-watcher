@@ -71,16 +71,19 @@ def parse_date_from_text(text):
 
 
 def fetch_games(page, event_url, debug=False):
-    """回傳該活動所有場次的 list of dict {date, title, venue, status, raw_text}。"""
+    """回傳 (games, page_ok)。
+
+    page_ok=True  → 頁面正常渲染。games=[] 代表 tixcraft 顯示「目前無場次資訊」
+    page_ok=False → 頁面結構抓不到（疑似 transient 失敗），caller 應視為未知
+    """
     url = game_list_url(event_url)
     page.goto(url, wait_until="domcontentloaded", timeout=60000)
     try:
         page.wait_for_selector("#gameList tbody tr", timeout=15000)
     except Exception:
-        # 沒有 #gameList — 可能還沒有上架場次，回空 list
         if debug:
             print(f"[scraper] {url} → 找不到 #gameList tbody tr")
-        return []
+        return [], False
     page.wait_for_timeout(500)
 
     rows = page.evaluate(
@@ -150,16 +153,26 @@ def fetch_games(page, event_url, debug=False):
             "buy_href": r.get("buy_href"),
             "raw_text": full_text[:300],
         })
-    return games
+    return games, True
 
 
-def fetch_event(event_url, headless=True, debug=False):
+def fetch_event(event_url, headless=True, debug=False, retries=1):
+    """回傳 (games, page_ok)。
+    retries: page_ok=False 時最多重試幾次（預設 1，總共最多 2 次）。
+    """
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
         ctx = browser.new_context(locale="zh-TW", user_agent=USER_AGENT)
         page = ctx.new_page()
         try:
-            return fetch_games(page, event_url, debug=debug)
+            games, page_ok = fetch_games(page, event_url, debug=debug)
+            attempt = 0
+            while not page_ok and attempt < retries:
+                attempt += 1
+                print(f"[scraper] page_ok=False — 重試 #{attempt}")
+                page.wait_for_timeout(3000)
+                games, page_ok = fetch_games(page, event_url, debug=debug)
+            return games, page_ok
         finally:
             ctx.close()
             browser.close()

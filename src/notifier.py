@@ -19,6 +19,7 @@ STATUS_LABEL = {
     "ended": "⚫ 結束販售",
     "unknown": "❓ 狀態未知",
     "no_match": "⚠️ 找不到符合場次",
+    "no_sessions": "⚫ 目前無場次",
 }
 
 
@@ -92,33 +93,15 @@ def _result_line(r):
 
 
 def notify_events(events, all_results):
-    """events: [(result, prev, curr, kind)]"""
+    """events: [(result, prev, curr, kind)] —— 只會收到 became_available。"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     became_avail = [e for e in events if e[3] == "became_available"]
-    became_unavail = [e for e in events if e[3] == "became_unavailable"]
-    config_broken = [e for e in events if e[3] == "config_broken"]
 
-    lines = []
-    if became_avail:
-        lines.append(f"🚨 tixcraft 有票了！（{len(became_avail)} 場）  {now}")
-        lines.append("")
-        for r, prev, curr, _ in became_avail:
-            lines.append(f"▶ {r['name']}")
-            lines.append(_result_line(r))
-            lines.append(f"  🔗 {r.get('event_url','')}")
-            lines.append("")
-    elif became_unavail:
-        lines.append(f"📭 tixcraft 場次狀態異動  {now}")
-        lines.append("")
-        for r, prev, curr, _ in became_unavail:
-            lines.append(f"▶ {r['name']}  ({STATUS_LABEL.get(prev,prev)} → {STATUS_LABEL.get(curr,curr)})")
-            lines.append(_result_line(r))
-            lines.append("")
-
-    if config_broken:
-        lines.append("⚠️ 以下目標篩不到場次，請檢查 targets.json：")
-        for r, prev, curr, _ in config_broken:
-            lines.append(f"  - {r['name']}: target_date={r.get('target_date','')!r} keyword={r.get('keyword','')!r}")
+    lines = [f"🚨 tixcraft 有票了！（{len(became_avail)} 場）  {now}", ""]
+    for r, prev, curr, _ in became_avail:
+        lines.append(f"▶ {r['name']}")
+        lines.append(_result_line(r))
+        lines.append(f"  🔗 {r.get('event_url','')}")
         lines.append("")
 
     lines.append("─── 目前監控狀態 ───")

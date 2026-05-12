@@ -18,7 +18,8 @@ def main():
         arg = f"https://tixcraft.com/activity/detail/{arg}"
 
     print(f"[list_games] 抓取 {game_list_url(arg)} ...")
-    games = fetch_event(arg, headless=True, debug=True)
+    games, page_ok = fetch_event(arg, headless=True, debug=True)
+    print(f"  page_ok = {page_ok}")
     print()
     print(f"找到 {len(games)} 場：")
     print()

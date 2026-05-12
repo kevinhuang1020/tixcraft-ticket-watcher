@@ -27,6 +27,7 @@ NOT_YET = "not_yet"
 ENDED = "ended"
 UNKNOWN = "unknown"
 NO_MATCH = "no_match"
+NO_SESSIONS = "no_sessions"  # tixcraft 顯示「目前無場次資訊」
 
 
 def load_state():
@@ -42,11 +43,18 @@ def save_state(state):
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+_REAL_STATUSES = {AVAILABLE, SOLDOUT, NOT_YET, ENDED}
+
+
 def diff_status(results, prev_state):
     """results: list of dict {name, status, ...}
     回傳 (events, new_state)
     events: list of (result, prev_status, curr_status, kind)
-      kind: "became_available" | "became_unavailable" | "config_broken"
+      kind: "became_available"   curr 變成可購買 → 通知
+
+    設計取捨：使用者只想知道「有票了」。不通知下架、不通知設定錯（會在心跳訊息看到）。
+
+    防呆：當 curr 是 UNKNOWN（scraper 抓壞）且 prev 是真實狀態 → 保留 prev、靜默
     """
     new_state = {}
     events = []
@@ -55,15 +63,17 @@ def diff_status(results, prev_state):
     for r in results:
         name = r["name"]
         curr = r["status"]
+        prev = prev_state.get(name)
+
+        if curr == UNKNOWN and prev in _REAL_STATUSES:
+            print(f"[state] ⚠️ {name} 抓到 unknown，保留 prev={prev}")
+            new_state[name] = prev
+            r["status"] = prev
+            continue
+
         new_state[name] = curr
 
         if is_first_run:
-            continue
-
-        prev = prev_state.get(name)
-        if prev is None:
-            if curr == AVAILABLE:
-                events.append((r, None, curr, "became_available"))
             continue
 
         if prev == curr:
@@ -71,9 +81,5 @@ def diff_status(results, prev_state):
 
         if curr == AVAILABLE:
             events.append((r, prev, curr, "became_available"))
-        elif prev == AVAILABLE:
-            events.append((r, prev, curr, "became_unavailable"))
-        elif curr == NO_MATCH and prev != NO_MATCH:
-            events.append((r, prev, curr, "config_broken"))
 
     return events, new_state

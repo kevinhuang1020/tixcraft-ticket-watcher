@@ -8,7 +8,10 @@ from pathlib import Path
 
 from scraper import fetch_event
 from filter import match_target
-from state import load_state, save_state, diff_status, AVAILABLE, NO_MATCH
+from state import (
+    load_state, save_state, diff_status,
+    AVAILABLE, NO_MATCH, NO_SESSIONS, UNKNOWN,
+)
 from notifier import notify_events, notify_heartbeat, notify_scrape_failed
 
 TARGETS_PATH = Path(os.getenv("TARGETS_PATH", "targets.json"))
@@ -61,17 +64,26 @@ def evaluate_target(t):
     }
 
     try:
-        games = fetch_event(event_url, headless=True)
+        games, page_ok = fetch_event(event_url, headless=True)
     except Exception as e:
         print(f"[main] scrape 失敗 {name}: {e}")
         traceback.print_exc()
-        result["status"] = "unknown"
+        result["status"] = UNKNOWN
         result["error"] = str(e)
         return result
 
-    print(f"[main] {name} → {len(games)} 場")
+    print(f"[main] {name} → {len(games)} 場 (page_ok={page_ok})")
     for g in games:
         print(f"  - {g.get('date','?')} {g.get('title','')[:40]} → {g.get('status')}")
+
+    if not page_ok:
+        result["status"] = UNKNOWN
+        return result
+
+    if not games:
+        # 頁面 OK 但 tixcraft 顯示「目前無場次資訊」
+        result["status"] = NO_SESSIONS
+        return result
 
     matched, candidates = match_target(games, target_date, keyword)
     result["all_candidates"] = [
@@ -83,7 +95,6 @@ def evaluate_target(t):
         if target_date or keyword:
             result["status"] = NO_MATCH
         else:
-            # 沒指定條件 → 任一場有票就算 available
             statuses = [g.get("status") for g in games]
             if AVAILABLE in statuses:
                 result["status"] = AVAILABLE
@@ -95,7 +106,7 @@ def evaluate_target(t):
             elif statuses:
                 result["status"] = statuses[0]
             else:
-                result["status"] = NO_MATCH
+                result["status"] = NO_SESSIONS
         return result
 
     if len(candidates) > 1:
