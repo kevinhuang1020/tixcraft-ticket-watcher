@@ -93,16 +93,27 @@ def _result_line(r):
 
 
 def notify_events(events, all_results):
-    """events: [(result, prev, curr, kind)] —— 只會收到 became_available。"""
+    """events: [(result, prev, curr, kind)] —— became_available / became_ended"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     became_avail = [e for e in events if e[3] == "became_available"]
+    became_ended = [e for e in events if e[3] == "became_ended"]
 
-    lines = [f"🚨 tixcraft 有票了！（{len(became_avail)} 場）  {now}", ""]
-    for r, prev, curr, _ in became_avail:
-        lines.append(f"▶ {r['name']}")
-        lines.append(_result_line(r))
-        lines.append(f"  🔗 {r.get('event_url','')}")
+    lines = []
+    if became_avail:
+        lines.append(f"🚨 tixcraft 有票了！（{len(became_avail)} 場）  {now}")
         lines.append("")
+        for r, prev, curr, _ in became_avail:
+            lines.append(f"▶ {r['name']}")
+            lines.append(_result_line(r))
+            lines.append(f"  🔗 {r.get('event_url','')}")
+            lines.append("")
+    if became_ended:
+        lines.append(f"⛔ tixcraft 銷售結束  {now}")
+        lines.append("")
+        for r, prev, curr, _ in became_ended:
+            lines.append(f"▶ {r['name']}")
+            lines.append(_result_line(r))
+            lines.append("")
 
     lines.append("─── 目前監控狀態 ───")
     for r in all_results:

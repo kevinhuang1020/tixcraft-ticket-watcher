@@ -50,9 +50,10 @@ def diff_status(results, prev_state):
     """results: list of dict {name, status, ...}
     回傳 (events, new_state)
     events: list of (result, prev_status, curr_status, kind)
-      kind: "became_available"   curr 變成可購買 → 通知
+      kind: "became_available"  curr 變成可購買 → 通知
+            "became_ended"       curr 變成銷售結束 → 通知
 
-    設計取捨：使用者只想知道「有票了」。不通知下架、不通知設定錯（會在心跳訊息看到）。
+    設計取捨：只通知「有票」與「銷售結束」。售完 / 下架 / 設定錯不主動推。
 
     防呆：當 curr 是 UNKNOWN（scraper 抓壞）且 prev 是真實狀態 → 保留 prev、靜默
     """
@@ -81,5 +82,7 @@ def diff_status(results, prev_state):
 
         if curr == AVAILABLE:
             events.append((r, prev, curr, "became_available"))
+        elif curr == ENDED:
+            events.append((r, prev, curr, "became_ended"))
 
     return events, new_state
