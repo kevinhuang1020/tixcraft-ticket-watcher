@@ -1,8 +1,14 @@
 [
   {
-    "name": "NMIXX 高雄場",
+    "name": "NMIXX 高雄場 7/11",
     "event_url": "https://tixcraft.com/activity/detail/26_nmixx",
     "target_date": "2026-07-11",
+    "keyword": ""
+  },
+  {
+    "name": "NMIXX 高雄場 7/12 (加場)",
+    "event_url": "https://tixcraft.com/activity/detail/26_nmixx",
+    "target_date": "2026-07-12",
     "keyword": ""
   }
 ]
