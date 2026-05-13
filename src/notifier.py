@@ -93,10 +93,12 @@ def _result_line(r):
 
 
 def notify_events(events, all_results):
-    """events: [(result, prev, curr, kind)] —— became_available / became_ended"""
+    """events: [(result, prev, curr, kind)] —— became_<curr_status>，任何狀態變化都推。
+    有票 (became_available) 以 🚨 顯眼方式呈現；其他變化用 📋 一般風格。
+    """
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    became_avail = [e for e in events if e[3] == "became_available"]
-    became_ended = [e for e in events if e[3] == "became_ended"]
+    became_avail = [e for e in events if e[2] == "available"]
+    others = [e for e in events if e[2] != "available"]
 
     lines = []
     if became_avail:
@@ -107,19 +109,23 @@ def notify_events(events, all_results):
             lines.append(_result_line(r))
             lines.append(f"  🔗 {r.get('event_url','')}")
             lines.append("")
-    if became_ended:
-        lines.append(f"⛔ tixcraft 銷售結束  {now}")
+
+    if others:
+        lines.append(f"📋 tixcraft 場次狀態更新  {now}")
         lines.append("")
-        for r, prev, curr, _ in became_ended:
+        for r, prev, curr, _ in others:
+            prev_lbl = STATUS_LABEL.get(prev, prev or "(初次)")
+            curr_lbl = STATUS_LABEL.get(curr, curr)
             lines.append(f"▶ {r['name']}")
-            lines.append(_result_line(r))
+            lines.append(f"   {prev_lbl}  →  {curr_lbl}")
             lines.append("")
 
     lines.append("─── 目前監控狀態 ───")
     for r in all_results:
         lines.append(f"  {r['name']}: {STATUS_LABEL.get(r['status'], r['status'])}")
     lines.append("")
-    lines.append("⚠️ 請手動前往購票，本程式不會自動下單")
+    if became_avail:
+        lines.append("⚠️ 請手動前往購票，本程式不會自動下單")
     return send_line_message("\n".join(lines))
 
 
