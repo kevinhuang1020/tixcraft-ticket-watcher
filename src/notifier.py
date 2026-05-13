@@ -1,8 +1,13 @@
 """LINE Messaging API 推播。"""
+import json
 import os
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import requests
-from datetime import datetime
 from dotenv import load_dotenv
+
+import gitops
 
 load_dotenv()
 
@@ -10,6 +15,9 @@ TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 USER_ID = os.getenv("LINE_USER_ID")
 LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 LINE_MAX_UTF16 = 4800
+
+ANNOUNCED_PATH = Path("announced.json")
+DEDUP_COOLDOWN = timedelta(minutes=30)
 
 
 STATUS_LABEL = {
@@ -92,10 +100,55 @@ def _result_line(r):
     return line
 
 
+def _load_announced():
+    if not ANNOUNCED_PATH.exists():
+        return {}
+    try:
+        return json.loads(ANNOUNCED_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_announced(d):
+    ANNOUNCED_PATH.write_text(
+        json.dumps(d, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _dedup_filter(events):
+    """過濾掉 30 分鐘內已推過的相同 (name, curr_status) 事件。
+    回傳 (kept, announced_dict_to_save)。"""
+    announced = _load_announced()
+    now = datetime.now()
+    kept = []
+    for e in events:
+        r, prev, curr, _ = e
+        key = f"{r['name']}::{curr}"
+        prev_at_str = announced.get(key)
+        if prev_at_str:
+            try:
+                prev_at = datetime.fromisoformat(prev_at_str)
+                if now - prev_at < DEDUP_COOLDOWN:
+                    print(f"[dedup] 跳過 {key}（{(now - prev_at).total_seconds():.0f}s 前已推）")
+                    continue
+            except Exception:
+                pass
+        kept.append(e)
+        announced[key] = now.isoformat(timespec="seconds")
+    return kept, announced
+
+
 def notify_events(events, all_results):
     """events: [(result, prev, curr, kind)] —— became_<curr_status>，任何狀態變化都推。
     有票 (became_available) 以 🚨 顯眼方式呈現；其他變化用 📋 一般風格。
+    去重：同 (name, curr_status) 在 30 分鐘內只推一次（透過 announced.json + git 共享）。
     """
+    events, announced = _dedup_filter(events)
+    if not events:
+        print("[notify] 所有事件都被去重 — 跳過推播")
+        return
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     became_avail = [e for e in events if e[2] == "available"]
     others = [e for e in events if e[2] != "available"]
@@ -126,7 +179,11 @@ def notify_events(events, all_results):
     lines.append("")
     if became_avail:
         lines.append("⚠️ 請手動前往購票，本程式不會自動下單")
-    return send_line_message("\n".join(lines))
+    ok = send_line_message("\n".join(lines))
+    if ok:
+        _save_announced(announced)
+        gitops.commit_push(["announced.json"], "dedup: announced events")
+    return ok
 
 
 def notify_heartbeat(all_results):

@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import gitops
 from scraper import fetch_event
 from filter import match_target
 from state import (
@@ -119,6 +120,9 @@ def evaluate_target(t):
 
 
 def main():
+    # 從 repo 拉最新 announced.json（與 GH Actions 端共享去重狀態）
+    gitops.pull()
+
     try:
         targets = load_targets()
     except Exception as e:
