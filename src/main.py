@@ -148,12 +148,7 @@ def main():
         mark_notified()
         return
 
-    if should_send_heartbeat():
-        print("[main] 無事件且 ≥ 8h 未通知，推心跳")
-        notify_heartbeat(results)
-        mark_notified()
-    else:
-        print("[main] 無事件，8h 內已通知過，跳過")
+    print("[main] 無事件，靜默")
 
 
 if __name__ == "__main__":

@@ -64,10 +64,14 @@ def diff_status(results, prev_state):
         curr = r["status"]
         prev = prev_state.get(name)
 
-        if curr == UNKNOWN and prev in _REAL_STATUSES:
-            print(f"[state] ⚠️ {name} 抓到 unknown，保留 prev={prev}")
-            new_state[name] = prev
-            r["status"] = prev
+        # curr=unknown 永遠不推（不論 prev 是什麼）；prev 是真實狀態時連 state 都保留
+        if curr == UNKNOWN:
+            if prev in _REAL_STATUSES or prev == NO_SESSIONS:
+                print(f"[state] ⚠️ {name} 抓到 unknown，保留 prev={prev}")
+                new_state[name] = prev
+                r["status"] = prev
+            else:
+                new_state[name] = curr
             continue
 
         new_state[name] = curr
