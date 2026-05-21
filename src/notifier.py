@@ -157,7 +157,10 @@ def notify_events(events, all_results):
         for r, prev, curr, _ in became_avail:
             lines.append(f"▶ {r['name']}")
             lines.append(_result_line(r))
-            lines.append(f"  🔗 {r.get('event_url','')}")
+            buy = r.get("buy_url") or ""
+            if buy:
+                lines.append(f"  🎫 直接購票：{buy}")
+            lines.append(f"  🔗 活動頁：{r.get('event_url','')}")
             lines.append("")
 
     if others:

@@ -118,6 +118,7 @@ def evaluate_target(t):
     result["status"] = matched.get("status", "unknown")
     result["matched_date"] = matched.get("date")
     result["matched_title"] = matched.get("title")
+    result["buy_url"] = matched.get("buy_href") or ""
     return result
 
 

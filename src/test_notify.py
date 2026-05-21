@@ -25,6 +25,7 @@ def main():
         "status": "available",
         "matched_date": t.get("target_date", "2026-07-11"),
         "matched_title": "（測試訊息，請忽略）",
+        "buy_url": "https://tixcraft.com/ticket/area/26_aespa/22415",
     }
     fake_event = (fake_result, "soldout", "available", "became_available")
     print("[test] 推一則模擬通知到 LINE group...")
