@@ -1,4 +1,4 @@
-"""LINE Messaging API 推播。"""
+"""Telegram Bot API 推播。"""
 import json
 import os
 from datetime import datetime, timedelta
@@ -11,10 +11,9 @@ import gitops
 
 load_dotenv()
 
-TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
-USER_ID = os.getenv("LINE_USER_ID")
-LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
-LINE_MAX_UTF16 = 4800
+TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TG_MAX_CHARS = 4000  # 上限 4096，留餘裕
 
 ANNOUNCED_PATH = Path("announced.json")
 DEDUP_COOLDOWN = timedelta(minutes=30)
@@ -31,27 +30,20 @@ STATUS_LABEL = {
 }
 
 
-def _utf16_len(s):
-    return len(s.encode("utf-16-le")) // 2
-
-
-def _split_chunks(text, size=LINE_MAX_UTF16):
-    if _utf16_len(text) <= size:
+def _split_chunks(text, size=TG_MAX_CHARS):
+    if len(text) <= size:
         return [text]
     chunks, buf, buf_len = [], [], 0
     for line in text.split("\n"):
-        line_len = _utf16_len(line) + 1
+        line_len = len(line) + 1
         if line_len > size:
             if buf:
                 chunks.append("\n".join(buf))
                 buf, buf_len = [], 0
             s = line
             while s:
-                cut = size
-                while _utf16_len(s[:cut]) > size and cut > 0:
-                    cut -= 1
-                chunks.append(s[:cut])
-                s = s[cut:]
+                chunks.append(s[:size])
+                s = s[size:]
             continue
         if buf_len + line_len > size:
             chunks.append("\n".join(buf))
@@ -63,22 +55,23 @@ def _split_chunks(text, size=LINE_MAX_UTF16):
     return chunks
 
 
-def send_line_message(text, quiet=False):
-    if not TOKEN or not USER_ID:
-        print("[notifier] 未設定 LINE_CHANNEL_ACCESS_TOKEN 或 LINE_USER_ID，跳過推播")
+def send_telegram_message(text, quiet=False):
+    if not TG_TOKEN or not TG_CHAT_ID:
+        print("[notifier] 未設定 TELEGRAM_BOT_TOKEN 或 TELEGRAM_CHAT_ID，跳過推播")
         print("---")
         print(text)
         print("---")
         return False
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {TOKEN}",
-    }
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     ok = True
     for chunk in _split_chunks(text):
-        payload = {"to": USER_ID, "messages": [{"type": "text", "text": chunk}]}
+        payload = {
+            "chat_id": TG_CHAT_ID,
+            "text": chunk,
+            "disable_web_page_preview": True,
+        }
         try:
-            r = requests.post(LINE_PUSH_URL, headers=headers, json=payload, timeout=10)
+            r = requests.post(url, json=payload, timeout=10)
             if r.status_code != 200:
                 print(f"[notifier] 推播失敗 {r.status_code}: {r.text}")
                 ok = False
@@ -88,6 +81,10 @@ def send_line_message(text, quiet=False):
             print(f"[notifier] 推播異常: {e}")
             ok = False
     return ok
+
+
+# 舊名相容：呼叫 send_line_message 仍可運作
+send_line_message = send_telegram_message
 
 
 def _result_line(r):
