@@ -7,8 +7,6 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-import gitops
-
 load_dotenv()
 
 TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -182,7 +180,6 @@ def notify_events(events, all_results):
     ok = send_line_message("\n".join(lines))
     if ok:
         _save_announced(announced)
-        gitops.commit_push(["announced.json"], "dedup: announced events")
     return ok
 
 
