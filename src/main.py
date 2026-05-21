@@ -52,12 +52,14 @@ def evaluate_target(t):
     event_url = t["event_url"]
     target_date = t.get("target_date", "")
     keyword = t.get("keyword", "")
+    exclude_keywords = t.get("exclude_keywords", [])
 
     result = {
         "name": name,
         "event_url": event_url,
         "target_date": target_date,
         "keyword": keyword,
+        "exclude_keywords": exclude_keywords,
         "status": "unknown",
         "matched_date": None,
         "matched_title": None,
@@ -86,7 +88,7 @@ def evaluate_target(t):
         result["status"] = NO_SESSIONS
         return result
 
-    matched, candidates = match_target(games, target_date, keyword)
+    matched, candidates = match_target(games, target_date, keyword, exclude_keywords)
     result["all_candidates"] = [
         {"date": g.get("date"), "title": g.get("title"), "status": g.get("status")}
         for g in candidates

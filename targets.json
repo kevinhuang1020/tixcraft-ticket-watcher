@@ -3,6 +3,7 @@
     "name": "aespa 台北場 8/11",
     "event_url": "https://tixcraft.com/activity/detail/26_aespa",
     "target_date": "2026-08-11",
-    "keyword": ""
+    "keyword": "",
+    "exclude_keywords": ["身心障礙", "三星"]
   }
 ]
